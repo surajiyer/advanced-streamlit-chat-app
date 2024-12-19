@@ -92,7 +92,8 @@ def display_sidebar():
 def display_chat_messages():
     """Display chat messages."""
     for msg in st.session_state.messages:
-        st.chat_message(msg["role"]).write(msg["content"])
+        with st.chat_message(msg["role"]):
+            st.markdown(msg["content"])
 
 
 def handle_user_input(user, character, avatar):
@@ -104,7 +105,8 @@ def handle_user_input(user, character, avatar):
 
         # Append user message to session state and save to database
         st.session_state.messages.append({"role": "user", "content": prompt})
-        st.chat_message("user").write(prompt)
+        with st.chat_message("user"):
+            st.markdown(prompt)
         save_message(st.session_state.log_id, "user", prompt)
 
         # Get response from the chatbot API
@@ -121,7 +123,8 @@ def handle_user_input(user, character, avatar):
         # Append chatbot response to session state and save to database
         msg = response["choices"][0]["message"]
         st.session_state.messages.append(msg)
-        st.chat_message(msg["role"], avatar=avatar).write(msg["content"])
+        with st.chat_message(msg["role"], avatar=avatar):
+            st.markdown(msg["content"])
         save_message(st.session_state.log_id, msg["role"], msg["content"])
 
 
