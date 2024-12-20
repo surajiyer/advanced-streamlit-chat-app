@@ -1,15 +1,11 @@
 import streamlit as st
-from utils import (
-    complete_chat,
-    init_db,
-    save_chat_log,
-    save_message,
-    get_chat_logs,
-    get_messages,
-    save_character,
-    get_all_characters,
-)
+
+from ai import complete_chat
+from database import Database
 import globals as g
+
+
+db = Database()
 
 
 def set_page_configurations():
@@ -19,13 +15,12 @@ def set_page_configurations():
 
 
 def init_session_state():
-    """Initialize session state for messages and log_id"""
+    """Initialize session state for messages and conversation_id"""
     if "messages" not in st.session_state:
         st.session_state.messages = [{"role": "assistant", "content": g.DEFAULT_ASSISTANT_MESSAGE}]
-        st.session_state.log_id = None
+        st.session_state.conversation_id = None
 
 
-@st.dialog("Create a new character")
 def create_character_form():
     """Popup form for adding a new character."""
     new_character_name = st.text_input("Character Name")
@@ -44,12 +39,12 @@ def create_character_form():
         # Save character details and image
         if new_image_file:
             st.success(g.IMAGE_UPLOAD_SUCCESS)
-            save_character(new_character_name, new_character_description, new_image_file.getvalue())
+            db.save_character(new_character_name, new_character_description, new_image_file.getvalue())
         else:
-            save_character(new_character_name, new_character_description)
+            db.save_character(new_character_name, new_character_description)
 
         st.success(f"Character '{new_character_name}' added successfully!")
-        st.rerun()
+        st.experimental_rerun()
 
 
 def display_sidebar():
@@ -60,7 +55,7 @@ def display_sidebar():
 
         # User and character selection
         user = st.selectbox(g.USER_SELECTBOX_LABEL, options=[g.DEFAULT_USER], index=0)
-        characters = get_all_characters()
+        characters = db.get_all_characters()
         character = st.selectbox(
             g.CHARACTER_SELECTBOX_LABEL, options=characters, index=0, format_func=lambda x: x["name"]
         )
@@ -74,15 +69,15 @@ def display_sidebar():
 
         # Display previous conversations
         if user:
-            chat_logs = get_chat_logs(user)
-            if chat_logs:
-                selected_chat = st.radio(
+            conversations = db.get_conversations(user)
+            if conversations:
+                selected_conversation = st.radio(
                     g.PREVIOUS_CONVERSATIONS_LABEL,
-                    chat_logs,
+                    conversations,
                     format_func=lambda x: f"Character: {x['character']}",
                 )
-                if selected_chat:
-                    st.session_state.messages = get_messages(selected_chat["id"])
+                if selected_conversation:
+                    st.session_state.messages = db.get_messages(selected_conversation["id"])
             else:
                 st.write(g.NO_PREVIOUS_CONVERSATIONS_TEXT)
 
@@ -99,21 +94,19 @@ def display_chat_messages():
 def handle_user_input(user, character, avatar):
     """Handle user input and chatbot response."""
     if prompt := st.chat_input():
-        # Save chat log if it's the first message
-        if st.session_state.log_id is None:
-            st.session_state.log_id = save_chat_log(user, character["name"])
+        # Save conversation if it's the first message
+        if st.session_state.conversation_id is None:
+            st.session_state.conversation_id = db.save_conversation(user, character["name"])
 
         # Append user message to session state and save to database
         st.session_state.messages.append({"role": "user", "content": prompt})
         with st.chat_message("user"):
             st.markdown(prompt)
-        save_message(st.session_state.log_id, "user", prompt)
+        db.save_message(st.session_state.conversation_id, "user", prompt)
 
         # Get response from the chatbot API
         try:
-            # response = complete_chat(model="gpt-35-turbo-16k", messages=st.session_state.messages)
-            last_user_message = st.session_state.messages[-1]["content"]
-            response = {"choices": [{"message": {"role": "assistant", "content": f"Echo: {last_user_message}"}}]}
+            response = complete_chat(model="gpt-35-turbo-16k", messages=st.session_state.messages)
         except Exception as e:
             st.error(f"An error occurred: {e}")
             st.stop()
@@ -125,13 +118,24 @@ def handle_user_input(user, character, avatar):
         st.session_state.messages.append(msg)
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"])
-        save_message(st.session_state.log_id, msg["role"], msg["content"])
+        db.save_message(st.session_state.conversation_id, msg["role"], msg["content"])
 
 
 if __name__ == "__main__":
-    init_db()
     set_page_configurations()
     init_session_state()
     user, character, avatar = display_sidebar()
     display_chat_messages()
     handle_user_input(user, character, avatar)
+
+# Logical issues or bugs in the app:
+# 1. The `avatar` variable is set to `None` in `display_sidebar` and is not updated with the actual image URL.
+# 2. The `avatar` is not being displayed correctly in the chat messages.
+# 3. The `create_character_form` function does not handle the case where the image file is not provided.
+# 4. The `save_character` function in `utils.py` saves the image as bytes, but the `get_all_characters` function retrieves it as a string.
+# 5. The `complete_chat` function is commented out and replaced with a mock response.
+# 6. The `st.dialog` decorator is not a valid Streamlit function and should be replaced with a proper modal implementation.
+# 7. The `st.rerun()` function is not a valid Streamlit function and should be replaced with `st.experimental_rerun()`.
+# 8. The `character` selectbox in the sidebar does not update when a new character is added.
+# 9. The `user` selectbox in the sidebar is hardcoded to "default_user" and does not allow for multiple users.
+# 10. The `get_image_url_from_s3` function is not used anywhere in the code.
