@@ -15,6 +15,7 @@ def db_connection(func: Callable):
         finally:
             conn.close()
         return result
+
     return with_connection
 
 
@@ -55,7 +56,9 @@ class Database:
     @db_connection
     def save_message(self, conversation_id: int, role: str, content: str, conn=None):
         c = conn.cursor()
-        c.execute("INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)", (conversation_id, role, content))
+        c.execute(
+            "INSERT INTO messages (conversation_id, role, content) VALUES (?, ?, ?)", (conversation_id, role, content)
+        )
 
     @db_connection
     def get_conversations(self, user: str, conn=None) -> List[Dict]:
@@ -74,7 +77,9 @@ class Database:
     @db_connection
     def save_character(self, name: str, description: str, image_bytes: Optional[bytes] = None, conn=None):
         c = conn.cursor()
-        c.execute("INSERT INTO characters (name, description, image) VALUES (?, ?, ?)", (name, description, image_bytes))
+        c.execute(
+            "INSERT INTO characters (name, description, image) VALUES (?, ?, ?)", (name, description, image_bytes)
+        )
 
     @db_connection
     def get_all_characters(self, conn=None) -> List[Dict]:

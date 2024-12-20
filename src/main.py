@@ -16,9 +16,9 @@ def set_page_configurations():
 
 def init_session_state():
     """Initialize session state for messages and conversation_id"""
+    st.session_state.conversation_id = None
     if "messages" not in st.session_state:
         st.session_state.messages = [{"role": "assistant", "content": g.DEFAULT_ASSISTANT_MESSAGE}]
-        st.session_state.conversation_id = None
 
 
 def create_character_form():
@@ -44,28 +44,36 @@ def create_character_form():
             db.save_character(new_character_name, new_character_description)
 
         st.success(f"Character '{new_character_name}' added successfully!")
-        st.experimental_rerun()
+        st.rerun()
 
 
 def display_sidebar():
     """Configure and display the sidebar"""
     with st.sidebar:
-        st.header(g.SIDEBAR_HEADER)
-        st.write(g.SIDEBAR_PANEL_TEXT)
+        # User selection
+        st.header(g.USER_SELECTION_HEADER)
+        user = st.selectbox(g.USER_SELECTBOX_LABEL, options=[g.DEFAULT_USER], index=0, label_visibility="collapsed")
 
-        # User and character selection
-        user = st.selectbox(g.USER_SELECTBOX_LABEL, options=[g.DEFAULT_USER], index=0)
+        # Character selection
+        st.header(g.CHARACTERS_HEADER)
+        if st.button("➕ Create new character", key="new_character_btn", use_container_width=True):
+            create_character_form()
         characters = db.get_all_characters()
         character = st.selectbox(
-            g.CHARACTER_SELECTBOX_LABEL, options=characters, index=0, format_func=lambda x: x["name"]
+            g.CHARACTER_SELECTBOX_LABEL,
+            options=characters,
+            index=0,
+            format_func=lambda x: x["name"],
+            label_visibility="collapsed",
         )
         avatar = character.get("image")
         if avatar:
             st.image(avatar)
 
-        # Plus icon button to add a new character
-        if st.button("➕"):
-            create_character_form()
+        # Conversations selection
+        st.header(g.CONVERSATIONS_HEADER)
+        if st.button(g.CREATE_NEW_CONVERSATION_LABEL, key="new_conversation_btn", use_container_width=True):
+            init_session_state()
 
         # Display previous conversations
         if user:
@@ -74,7 +82,9 @@ def display_sidebar():
                 selected_conversation = st.radio(
                     g.PREVIOUS_CONVERSATIONS_LABEL,
                     conversations,
+                    index=0,
                     format_func=lambda x: f"Character: {x['character']}",
+                    label_visibility="collapsed",
                 )
                 if selected_conversation:
                     st.session_state.messages = db.get_messages(selected_conversation["id"])
