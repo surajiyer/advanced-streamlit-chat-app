@@ -1,5 +1,5 @@
-.PHONY: format
-format:
+.PHONY: lint
+lint:
 	black --line-length 120 .
 
 .PHONY: run
